@@ -1,0 +1,40 @@
+name: Build Falcon Browser
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Falcon Source
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install git python3 curl build-essential lsb-release sudo -y
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          echo 'export PATH="$HOME/depot_tools:$PATH"' >> ~/.bashrc
+          source ~/.bashrc
+
+      - name: Sync Chromium Code
+        run: |
+          git clone https://chromium.googlesource.com/chromium/src.git falcon-browser
+          cd falcon-browser
+          gclient sync
+
+      - name: Build Falcon Browser
+        run: |
+          cd falcon-browser
+          gn gen out/Default --args="is_debug=false use_jumbo_build=true symbol_level=1"
+          autoninja -C out/Default chrome
+
+      - name: Upload Built Browser
+        uses: actions/upload-artifact@v3
+        with:
+          name: falcon-build
+          path: falcon-browser/out/Default/chrome
